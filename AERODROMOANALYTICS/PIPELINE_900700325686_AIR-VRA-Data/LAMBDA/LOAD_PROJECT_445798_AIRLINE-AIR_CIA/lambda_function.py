@@ -2,6 +2,7 @@ import boto3
 import urllib
 import datetime
 
+from io import StringIO
 from pandas import DataFrame
 
 #global objects
@@ -67,7 +68,10 @@ def lambda_handler(event, context):
     output_path = objetct_key_prefix.replace('RAW', 'CURATED')
     output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
     
-    s3_client.put_object(Body=str(data_air_cia), Bucket=bucket_name, Key=output_path)
+    data_csv_buffer = StringIO()
+    data_air_cia.to_csv(data_csv_buffer, index=False)
+
+    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
 
     return {
         'columns' : str(data_air_cia.columns),
