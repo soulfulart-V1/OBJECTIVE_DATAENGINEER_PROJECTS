@@ -8,13 +8,14 @@ from io import StringIO
 from pandas import DataFrame
 
 #global itens
-s3 = boto3.client('s3')
+s3_client = boto3.client('s3')
 bucket_name = 'objective-data-lake'
 
 def lambda_handler(event, context):
 
-    year = event['time'][0:4]
-    month = event['time'][5:7]
+    year = int(event['time'][0:4])
+    month = int(event['time'][5:7])
+    day = 1 #it can be any day on the month
 
     date_to_extract =  datetime.datetime(year, month, day)
     
@@ -39,12 +40,24 @@ def lambda_handler(event, context):
     file_content = ""
     
     for item in filter_files['Contents']:
-        file_content = file_content + str(s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read())
+        file_content = file_content + s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
+        
 
-    air_json_data = json.loads(file_content)
+    vra_data_dict = json.loads(file_content)
+    vra_dataframe = DataFrame.from_dict(vra_data_dict)
+    
+    output_path = objetct_key_prefix.replace('RAW', 'CURATED')
+    output_path = output_path+'/'+used_year+used_month+'.csv'
+    
+    data_csv_buffer = StringIO()
+    vra_dataframe.to_csv(data_csv_buffer, index=False)
+
+    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
     
     return {
 
-        'message' : str(air_json_data)
+        'air_json' : str(vra_dataframe.head()),
+        'file_content_size' : str(len(file_content)/1e6),
+        'file_content' : str(type(file_content))
         
     }
