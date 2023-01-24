@@ -15,7 +15,7 @@ def lambda_handler(event, context):
 
     year = int(event['time'][0:4])
     month = int(event['time'][5:7])
-    day = 1 #it can be any day on the month
+    day = 1
 
     date_to_extract =  datetime.datetime(year, month, day)
     
