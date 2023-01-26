@@ -1,4 +1,5 @@
 import os
+import pytz
 import json
 import boto3
 import requests
@@ -15,7 +16,7 @@ def lambda_handler(event, context):
 
     year = int(event['time'][0:4])
     month = int(event['time'][5:7])
-    day = 1
+    day = 1 #it can be any day on the month
 
     date_to_extract =  datetime.datetime(year, month, day)
     
@@ -49,6 +50,7 @@ def lambda_handler(event, context):
     output_path = objetct_key_prefix.replace('RAW', 'CURATED')
     output_path = output_path+'/'+used_year+used_month+'.csv'
     
+    vra_dataframe['transformed_date'] = datetime.datetime.now(pytz.timezone('America/Sao_Paulo'))
     data_csv_buffer = StringIO()
     vra_dataframe.to_csv(data_csv_buffer, index=False)
 
