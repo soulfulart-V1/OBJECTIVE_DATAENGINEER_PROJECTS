@@ -42,23 +42,18 @@ def lambda_handler(event, context):
     file_content = ""
     
     for item in filter_files['Contents']:
-        file_content = file_content + str(s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read())
+        file_content = file_content + s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
         
-    file_content = (file_content.encode().decode('unicode_escape').encode('latin1').decode().lstrip('"b').strip("'"))
-    file_content = file_content.replace("b'","")
-    file_content = file_content.split('\n')
+    file_content_columned = []
     
-    columns = file_content[0].split(";")
-    columns = to_snake(columns)
+    for item in file_content.split("\n"):
+        file_content_columned.append(item.split(";"))
     
-    file_content_list = []
+    data_air_cia = DataFrame(file_content_columned, columns=file_content_columned[0])
     
-    for item in file_content:
-        file_content_list.append(item.split(";"))
-        
-    
-    data_air_cia = DataFrame(file_content_list, columns=columns)
-    
+    #columns_snake = to_snake(list(data_air_cia.columns))
+    #data_air_cia = data_air_cia.rename(columns=columns_snake)
+    '''
     data_air_cia[['icao', 'iata']] = data_air_cia['icao_iata'].str.split(' ', 1, expand=True)
     data_air_cia.drop(columns=['icao_iata'], inplace=True)
 
@@ -71,12 +66,11 @@ def lambda_handler(event, context):
     data_csv_buffer = StringIO()
     data_air_cia.to_csv(data_csv_buffer, index=False)
 
-    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
+    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)'''
 
     return {
-        'columns' : str(data_air_cia.columns),
-        'data' : str(data_air_cia.head()),
-        'time' : str(date_to_extract)        
+
+        'time' : str(list(data_air_cia.columns))        
     }
     
 def to_snake(string_list):
