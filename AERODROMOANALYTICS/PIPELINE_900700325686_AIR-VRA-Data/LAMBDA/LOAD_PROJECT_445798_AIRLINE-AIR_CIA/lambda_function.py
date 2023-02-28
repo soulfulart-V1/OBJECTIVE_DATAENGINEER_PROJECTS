@@ -71,9 +71,8 @@ def lambda_handler(event, context):
     data_air_cia['icao'] = data_air_cia['icao'].replace("", None)
     data_air_cia['iata'] = data_air_cia['iata'].replace("", None)
     
-    data_air_cia = data_air_cia[data_air_cia['razão_social']=='Razão Social']
+    data_air_cia = data_air_cia[data_air_cia['razão_social']!='Razão Social']
 
-    
     output_path = objetct_key_prefix.replace('RAW', 'CURATED')
     output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
     
