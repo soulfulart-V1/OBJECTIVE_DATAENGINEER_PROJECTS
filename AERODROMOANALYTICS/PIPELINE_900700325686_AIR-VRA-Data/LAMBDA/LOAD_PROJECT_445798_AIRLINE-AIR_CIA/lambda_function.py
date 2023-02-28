@@ -47,18 +47,32 @@ def lambda_handler(event, context):
     file_content_columned = []
     
     for item in file_content.split("\n"):
-        file_content_columned.append(item.split(";"))
+        add_file = item.split(";")
+        file_content_columned.append(add_file)
     
     data_air_cia = DataFrame(file_content_columned, columns=file_content_columned[0])
     
-    #columns_snake = to_snake(list(data_air_cia.columns))
-    #data_air_cia = data_air_cia.rename(columns=columns_snake)
-    '''
+    columns_snake = to_snake(list(data_air_cia.columns))
+
+    #map old columns new columns
+    map_columns = {}
+
+    for key in data_air_cia.columns:
+        for value in columns_snake:
+            map_columns[key] = value
+            columns_snake.remove(value)
+            break
+
+    data_air_cia = data_air_cia.rename(columns=map_columns)
+    
     data_air_cia[['icao', 'iata']] = data_air_cia['icao_iata'].str.split(' ', 1, expand=True)
     data_air_cia.drop(columns=['icao_iata'], inplace=True)
 
     data_air_cia['icao'] = data_air_cia['icao'].replace("", None)
     data_air_cia['iata'] = data_air_cia['iata'].replace("", None)
+    
+    data_air_cia = data_air_cia[data_air_cia['razão_social']=='Razão Social']
+
     
     output_path = objetct_key_prefix.replace('RAW', 'CURATED')
     output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
@@ -66,11 +80,11 @@ def lambda_handler(event, context):
     data_csv_buffer = StringIO()
     data_air_cia.to_csv(data_csv_buffer, index=False)
 
-    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)'''
+    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
 
     return {
 
-        'time' : str(list(data_air_cia.columns))        
+        'time' : str(list(data_air_cia.columns))
     }
     
 def to_snake(string_list):
