@@ -61,6 +61,11 @@ def lambda_handler(event, context):
 
     del data_vra
 
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoOrigem']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoDestino']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='NaN']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='None']
+
     return {
         
         'message' : str(data_vra_group.head())

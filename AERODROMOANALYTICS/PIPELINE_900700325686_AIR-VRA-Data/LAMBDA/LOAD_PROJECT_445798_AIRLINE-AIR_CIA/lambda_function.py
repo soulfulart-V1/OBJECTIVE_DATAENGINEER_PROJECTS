@@ -1,12 +1,14 @@
+import json
 import boto3
 import urllib
 import datetime
+import requests
 
 from io import StringIO
 from pandas import DataFrame
 
 #global objects
-s3_client = boto3.client('s3') #define s3 service
+s3_client = boto3.client('s3')
 bucket_name = 'objective-data-lake'
 
 def lambda_handler(event, context):
@@ -17,25 +19,22 @@ def lambda_handler(event, context):
 
     date_to_extract =  datetime.datetime(year, month, day)
     
-    #date to extract
-    today_date_minus_one = date_to_extract - datetime.timedelta(days=1)
-    
     #get year month and day separated
-    used_year = str(today_date_minus_one.year)
+    used_year = str(date_to_extract.year)
     
     #avoid use numbers without left zero 
-    if (today_date_minus_one.month < 10):
-        used_month = '0'+str(today_date_minus_one.month)
+    if (date_to_extract.month < 10):
+        used_month = '0'+str(date_to_extract.month)
         
-    else: used_month = str(today_date_minus_one.month)
+    else: used_month = str(date_to_extract.month)
     
-    if (today_date_minus_one.day<10):
-        used_day = '0'+str(today_date_minus_one.day)
-    else: used_day = str(today_date_minus_one.day)
+    if (date_to_extract.day<10):
+        used_day = '0'+str(date_to_extract.day)
+    else: used_day = str(date_to_extract.day)
 
-    object_path = 'RAW/DEPARTMENT_AERODROMO/PROJECT_445798_AIRLINE-VRA-AIR/AIR_CIA/'
-    partition='yearmonthday='
-    objetct_key_prefix = object_path+partition+used_year+used_month+used_day
+    object_path = 'CURATED/DEPARTMENT_AERODROMO/PROJECT_445798_AIRLINE-VRA-AIR/VRA/'
+    partition='yearmonth=202101'
+    objetct_key_prefix = object_path+partition
     
     filter_files = s3_client.list_objects(Bucket=bucket_name, Prefix=objetct_key_prefix)
     
@@ -43,56 +42,48 @@ def lambda_handler(event, context):
     
     for item in filter_files['Contents']:
         file_content = file_content + s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
-        
+
     file_content_columned = []
     
     for item in file_content.split("\n"):
-        add_file = item.split(";")
+        add_file = item.split(",")
         file_content_columned.append(add_file)
     
-    data_air_cia = DataFrame(file_content_columned, columns=file_content_columned[0])
+    data_vra = DataFrame(file_content_columned, columns=file_content_columned[0])
+
+    data_vra = data_vra[['ICAOAeródromoOrigem', 'ICAOAeródromoDestino']]
+
+    data_vra.drop_duplicates(inplace = True)
+
+    data_vra_group = DataFrame(columns=["All_ICAOS"])
+
+    data_vra_group["All_ICAOS"] = data_vra['ICAOAeródromoOrigem']
     
-    columns_snake = to_snake(list(data_air_cia.columns))
-
-    #map old columns new columns
-    map_columns = {}
-
-    for key in data_air_cia.columns:
-        for value in columns_snake:
-            map_columns[key] = value
-            columns_snake.remove(value)
-            break
-
-    data_air_cia = data_air_cia.rename(columns=map_columns)
+    data_vra_destino = DataFrame(columns=["All_ICAOS"])
+    data_vra_destino["All_ICAOS"] = data_vra['ICAOAeródromoDestino']
     
-    data_air_cia[['icao', 'iata']] = data_air_cia['icao_iata'].str.split(' ', 1, expand=True)
-    data_air_cia.drop(columns=['icao_iata'], inplace=True)
-
-    data_air_cia['icao'] = data_air_cia['icao'].replace("", None)
-    data_air_cia['iata'] = data_air_cia['iata'].replace("", None)
+    data_vra_group.append(data_vra_destino, ignore_index=True)
     
-    data_air_cia = data_air_cia[data_air_cia['razão_social']!='Razão Social']
+    del data_vra_destino
+    
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoOrigem']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoDestino']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='NaN']
+    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='None']
 
+    del data_vra
+    
     output_path = objetct_key_prefix.replace('RAW', 'CURATED')
     output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
     
     data_csv_buffer = StringIO()
-    data_air_cia.to_csv(data_csv_buffer, index=False)
+    data_vra_group.to_csv(data_csv_buffer, index=False)
 
     s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
 
-    return {
 
-        'time' : str(list(data_air_cia.columns))
+    return {
+        
+        'message' : str(data_vra_group.head())
+        
     }
-    
-def to_snake(string_list):
-        
-    i=0
-    
-    for item in string_list:
-        string_list[i] = item.replace(" ", "_")
-        string_list[i] = string_list[i].lower()
-        i+=1
-        
-    return string_list
