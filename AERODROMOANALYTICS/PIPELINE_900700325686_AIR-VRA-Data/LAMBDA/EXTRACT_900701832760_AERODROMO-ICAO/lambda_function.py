@@ -4,6 +4,7 @@ import urllib
 import datetime
 import requests
 
+from io import StringIO
 from pandas import DataFrame
 
 #global objects
@@ -32,42 +33,62 @@ def lambda_handler(event, context):
     else: used_day = str(date_to_extract.day)
 
     object_path = 'CURATED/DEPARTMENT_AERODROMO/PROJECT_445798_AIRLINE-VRA-AIR/VRA/'
-    partition='yearmonth=202101'
+    partition='yearmonth='
     objetct_key_prefix = object_path+partition
     
     filter_files = s3_client.list_objects(Bucket=bucket_name, Prefix=objetct_key_prefix)
     
     file_content = ""
     
+    data_vra_group_final = DataFrame(columns=["All_ICAOS"])
+
     for item in filter_files['Contents']:
-        file_content = file_content + s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
+        file_content = s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
+        
+        file_content = file_content.split('\n')
+        file_content_columned = []
 
-    file_content_columned = []
+        for item in file_content:
+            file_content_columned.append(item.split(','))
+        
+        data_vra = DataFrame(file_content_columned, columns=file_content_columned[0])
+
+        data_vra = data_vra[['ICAOAeródromoOrigem', 'ICAOAeródromoDestino']]
+
+        data_vra.drop_duplicates(inplace = True)
+
+        data_vra_aux = DataFrame(columns=["All_ICAOS"])
+        data_vra_aux["All_ICAOS"] = data_vra['ICAOAeródromoOrigem']
+
+        data_vra_aux_destino = DataFrame(columns=["All_ICAOS"])
+        data_vra_aux_destino["All_ICAOS"] = data_vra['ICAOAeródromoDestino']
+
+        data_vra_aux.append(data_vra_aux_destino, ignore_index=True)
+
+        data_vra_group_final = data_vra_group_final.append(data_vra_aux, ignore_index=True)
+
+        del data_vra
+        del data_vra_aux
+        del data_vra_aux_destino
+
+    data_vra_group_final.drop_duplicates(inplace = True)
+    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='ICAOAeródromoOrigem']
+    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='ICAOAeródromoDestino']
+    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='NaN']
+    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='None']
+
+    output_path = 'CURATED/DEPARTMENT_AERODROMO/PROJECT_445798_AIRLINE-VRA-AIR/AERODROMOS_ICAO/'
+    partition = 'yearmonthday='+used_year+used_month+used_day
+    output_path = output_path + partition
+    output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
     
-    for item in file_content.split("\n"):
-        add_file = item.split(",")
-        file_content_columned.append(add_file)
-    
-    data_vra = DataFrame(file_content_columned, columns=file_content_columned[0])
+    data_csv_buffer = StringIO()
+    data_vra_group_final.to_csv(data_csv_buffer, index=False)
 
-    data_vra = data_vra[['ICAOAeródromoOrigem', 'ICAOAeródromoDestino']]
-
-    data_vra.drop_duplicates(inplace = True)
-
-    data_vra_group = DataFrame(columns=["All_ICAOS"])
-
-    data_vra_group = data_vra_group.append(data_vra['ICAOAeródromoOrigem'], ignore_index=True)
-    data_vra_group = data_vra_group.append(data_vra['ICAOAeródromoDestino'], ignore_index=True)
-
-    del data_vra
-
-    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoOrigem']
-    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='ICAOAeródromoDestino']
-    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='NaN']
-    data_vra_group = data_vra_group[data_vra_group['All_ICAOS']!='None']
+    s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
 
     return {
         
-        'message' : str(data_vra_group.head())
+        'message' : str(data_vra_group_final.shape)
         
     }
