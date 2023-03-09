@@ -108,7 +108,7 @@ def lambda_handler(event, context):
     icao_data_fail = []
     icao_name_csv = 'icao,name'
     
-    for icao in new_get_icao[0:5]:
+    for icao in last_icao_list:
 
         querystring = {"icao":icao}
         headers = {
