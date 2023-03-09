@@ -44,7 +44,7 @@ def lambda_handler(event, context):
     
     file_content = ""
     
-    data_vra_group_final = DataFrame(columns=["All_ICAOS"])
+    icao_new_arrived = DataFrame(columns=["All_ICAOS"])
 
     last_item = filter_files['Contents'][-1]
     
@@ -61,7 +61,7 @@ def lambda_handler(event, context):
     data_vra = DataFrame(file_content_columned, columns=file_content_columned[0])
 
     data_vra = data_vra[['ICAOAeródromoOrigem', 'ICAOAeródromoDestino']]
-    '''
+    
     data_vra.drop_duplicates(inplace = True)
 
     data_vra_aux = DataFrame(columns=["All_ICAOS"])
@@ -72,18 +72,17 @@ def lambda_handler(event, context):
 
     data_vra_aux.append(data_vra_aux_destino, ignore_index=True)
 
-    data_vra_group_final = data_vra_group_final.append(data_vra_aux, ignore_index=True)
+    icao_new_arrived = icao_new_arrived.append(data_vra_aux, ignore_index=True)
 
     del data_vra
     del data_vra_aux
     del data_vra_aux_destino
 
-    data_vra_group_final.drop_duplicates(inplace = True)
-    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='ICAOAeródromoOrigem']
-    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='ICAOAeródromoDestino']
-    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='NaN']
-    data_vra_group_final = data_vra_group_final[data_vra_group_final['All_ICAOS']!='None']
-    '''
+    icao_new_arrived.drop_duplicates(inplace = True)
+    icao_new_arrived = icao_new_arrived[icao_new_arrived['All_ICAOS']!='ICAOAeródromoOrigem']
+    icao_new_arrived = icao_new_arrived[icao_new_arrived['All_ICAOS']!='ICAOAeródromoDestino']
+    icao_new_arrived = icao_new_arrived[icao_new_arrived['All_ICAOS']!='NaN']
+    icao_new_arrived = icao_new_arrived[icao_new_arrived['All_ICAOS']!='None']
     
     #up to date list
     icao_list = 'CURATED/DEPARTMENT_AERODROMO/PROJECT_445798_AIRLINE-VRA-AIR/AERODROMOS_ICAO/'
@@ -97,19 +96,19 @@ def lambda_handler(event, context):
     file_content = s3_client.get_object(Bucket=bucket_name, Key=last_icao_list['Key'])["Body"].read().decode('utf-8-sig')
 
     last_icao_list = file_content.split('\n')
+    new_get_icao = last_icao_list
 
     url = "https://airport-info.p.rapidapi.com/airport"
     icao_data_json = ""
 
-    '''#drop already found icao
-    for item in new_arrived_icao:
-        last_icao_list.remove(item)'''
+    #drop already found icao
+    for item in icao_new_arrived:
+        new_get_icao.remove(item)
 
-    last_icao_list = last_icao_list[0:5]
     icao_data_fail = []
     icao_name_csv = 'icao,name'
     
-    for icao in last_icao_list:
+    for icao in new_get_icao[0:5]:
 
         querystring = {"icao":icao}
         headers = {
@@ -149,6 +148,6 @@ def lambda_handler(event, context):
 
     return {
         
-        'message' : str(last_item['Key'])
+        'message' : str(new_get_icao)
         
     }
