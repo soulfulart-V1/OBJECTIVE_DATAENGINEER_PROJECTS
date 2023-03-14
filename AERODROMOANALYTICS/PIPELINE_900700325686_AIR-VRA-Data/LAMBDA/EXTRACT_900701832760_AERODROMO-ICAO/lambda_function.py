@@ -42,7 +42,7 @@ def lambda_handler(event, context):
     
     data_vra_group_final = DataFrame(columns=["All_ICAOS"])
 
-    for item in filter_files['Contents']:
+    for item in filter_files['tents']:
         file_content = s3_client.get_object(Bucket=bucket_name, Key=item['Key'])["Body"].read().decode('utf-8-sig')
         
         file_content = file_content.split('\n')
@@ -62,8 +62,9 @@ def lambda_handler(event, context):
 
         data_vra_aux_destino = DataFrame(columns=["All_ICAOS"])
         data_vra_aux_destino["All_ICAOS"] = data_vra['ICAOAeródromoDestino']
-
-        data_vra_aux.append(data_vra_aux_destino, ignore_index=True)
+        
+        data_vra_aux = concat([data_vra_aux["All_ICAOS"], data_vra_aux_destino["All_ICAOS"]],\
+                          ignore_index=True)
 
         data_vra_group_final = data_vra_group_final.append(data_vra_aux, ignore_index=True)
 

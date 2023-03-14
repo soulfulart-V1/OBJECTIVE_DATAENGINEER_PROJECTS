@@ -7,6 +7,8 @@ import requests
 
 from time import sleep
 from pandas import DataFrame
+from pandas import concat
+from pandas import Series
 
 #global objects
 s3_client = boto3.client('s3')
@@ -15,12 +17,8 @@ time_sleep = 0.1
 failure_find_string = -1
 
 def lambda_handler(event, context):
-    
-    year = 2023
-    month = 3
-    day = 9
-
-    date_to_extract =  datetime.datetime(year, month, day)
+ 
+    date_to_extract =  datetime.datetime.today()
     
     #get year month and day separated
     used_year = str(date_to_extract.year)
@@ -62,7 +60,7 @@ def lambda_handler(event, context):
 
     data_vra = data_vra[['ICAOAeródromoOrigem', 'ICAOAeródromoDestino']]
     
-    data_vra.drop_duplicates(inplace = True)
+    #data_vra.drop_duplicates(inplace = True)
 
     data_vra_aux = DataFrame(columns=["All_ICAOS"])
     data_vra_aux["All_ICAOS"] = data_vra['ICAOAeródromoOrigem']
@@ -70,9 +68,10 @@ def lambda_handler(event, context):
     data_vra_aux_destino = DataFrame(columns=["All_ICAOS"])
     data_vra_aux_destino["All_ICAOS"] = data_vra['ICAOAeródromoDestino']
 
-    data_vra_aux.append(data_vra_aux_destino, ignore_index=True)
+    data_vra_aux = concat([data_vra_aux["All_ICAOS"], data_vra_aux_destino["All_ICAOS"]],\
+                          ignore_index=True)
 
-    icao_new_arrived = icao_new_arrived.append(data_vra_aux, ignore_index=True)
+    icao_new_arrived["All_ICAOS"] = data_vra_aux
 
     del data_vra
     del data_vra_aux
@@ -96,19 +95,26 @@ def lambda_handler(event, context):
     file_content = s3_client.get_object(Bucket=bucket_name, Key=last_icao_list['Key'])["Body"].read().decode('utf-8-sig')
 
     last_icao_list = file_content.split('\n')
-    new_get_icao = last_icao_list
+    new_get_icao = Series.tolist(icao_new_arrived['All_ICAOS'])
 
     url = "https://airport-info.p.rapidapi.com/airport"
     icao_data_json = ""
 
     #drop already found icao
-    for item in icao_new_arrived:
-        new_get_icao.remove(item)
+    for item in last_icao_list:
+        try:
+            new_get_icao.remove(item)
+
+        except:
+            pass
 
     icao_data_fail = []
     icao_name_csv = 'icao,name'
+
+    if not new_get_icao:
+        return "No new ICAOS"
     
-    for icao in last_icao_list:
+    for icao in new_get_icao:
 
         querystring = {"icao":icao}
         headers = {
@@ -148,6 +154,6 @@ def lambda_handler(event, context):
 
     return {
         
-        'message' : str(new_get_icao)
+        'message' : str(icao_new_arrived)
         
     }
