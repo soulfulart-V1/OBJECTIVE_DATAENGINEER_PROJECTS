@@ -1,6 +1,9 @@
 CREATE EXTERNAL TABLE IF NOT EXISTS OBJECTIVE_AERODROMO.ICAO_NAME_LIST (
     icao STRING,
-    name STRING
+    iata STRING,
+    name STRING,
+    county STRING,
+    state STRING
 )
 
 PARTITIONED BY(yearmonthday int)

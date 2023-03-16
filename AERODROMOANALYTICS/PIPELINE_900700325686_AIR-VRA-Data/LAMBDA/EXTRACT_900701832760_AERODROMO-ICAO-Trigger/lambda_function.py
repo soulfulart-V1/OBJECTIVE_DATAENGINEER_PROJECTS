@@ -109,7 +109,7 @@ def lambda_handler(event, context):
             pass
 
     icao_data_fail = []
-    icao_name_csv = 'icao,name'
+    icao_name_csv = 'icao,iata,name,county,state'
 
     if not new_get_icao:
         return "No new ICAOS"
@@ -134,7 +134,7 @@ def lambda_handler(event, context):
             icao_data_dict = json.loads(response_text)
 
             #filtered name
-            icao_name_csv = icao_name_csv + '\n' + icao + ',' + icao_data_dict['name']
+            icao_name_csv = icao_name_csv + '\n' + icao + ',' + icao_data_dict['iata']+ ',' + icao_data_dict['name']+ ',' + icao_data_dict['county']+ ',' + icao_data_dict['state']
 
         sleep(time_sleep)
         
