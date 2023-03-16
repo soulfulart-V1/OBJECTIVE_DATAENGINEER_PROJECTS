@@ -78,13 +78,14 @@ def lambda_handler(event, context):
     output_path = output_path+'/'+used_year+used_month+used_day+'.csv'
     
     data_csv_buffer = StringIO()
-    data_air_cia.to_csv(data_csv_buffer, index=False)
+    data_air_cia.to_csv(data_csv_buffer, sep=";", index=False)
 
     s3_client.put_object(Body=data_csv_buffer.getvalue(), Bucket=bucket_name, Key=output_path)
 
     return {
 
         'time' : str(list(data_air_cia.columns))
+
     }
     
 def to_snake(string_list):
