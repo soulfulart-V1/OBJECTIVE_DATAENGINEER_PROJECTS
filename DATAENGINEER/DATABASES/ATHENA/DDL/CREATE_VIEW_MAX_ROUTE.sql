@@ -2,18 +2,31 @@ CREATE OR REPLACE VIEW MOST_USED_ROUTE_BY_AIRCOMPANY AS
 
 WITH max_icao_flight AS (
 
-SELECT icao_empr, num_voo FROM (
+SELECT 
+icao_empr,
+num_voo,
+"icaoaeródromoorigem",
+"icaoaeródromodestino"
+
+FROM (
 
 SELECT
 
-"icaoempresaaérea" as icao_empr,
 "númerovoo" as num_voo,
+"icaoempresaaérea" as icao_empr,
+"icaoaeródromoorigem",
+"icaoaeródromodestino",
 COUNT("númerovoo") as num_voo_count,
 RANK() OVER(PARTITION BY "icaoempresaaérea" ORDER BY COUNT("númerovoo") DESC) Rank 
 
 FROM objective_aerodromo.vra
 WHERE "situaçãovoo" = 'REALIZADO'
-GROUP BY "icaoempresaaérea", "númerovoo"
+GROUP BY
+"icaoempresaaérea",
+"númerovoo",
+"icaoaeródromoorigem",
+"icaoaeródromodestino"
+
 ORDER BY num_voo_count DESC
 
 )
@@ -22,34 +35,20 @@ WHERE Rank=1
 
 ),
 
-icao_flight_filter_max AS (
-
-SELECT DISTINCT
-
-"icaoempresaaérea" as icao_empr,
-"icaoaeródromoorigem",
-"icaoaeródromodestino"
-
-FROM objective_aerodromo.vra
-
-WHERE "númerovoo" in (SELECT num_voo FROM max_icao_flight)
-
-),
-
 icao_flight_filter_max_air_name AS (
 
 SELECT
 
-icao_flight_filter_max.icao_empr,
-icao_flight_filter_max."icaoaeródromoorigem",
-icao_flight_filter_max."icaoaeródromodestino",
+max_icao_flight.icao_empr,
+max_icao_flight."icaoaeródromoorigem",
+max_icao_flight."icaoaeródromodestino",
 air_cia.razao_social
 
-FROM icao_flight_filter_max
+FROM max_icao_flight
 
 LEFT JOIN air_cia
 
-ON icao_flight_filter_max.icao_empr = air_cia.icao
+ON max_icao_flight.icao_empr = air_cia.icao
 
 ),
 
@@ -88,4 +87,4 @@ icao_flight_filter_max_air_name_origem."icaoaeródromodestino" = icao_name_list.
 
 )
 
-SELECT * FROM final_table_view;
+SELECT DISTINCT * FROM final_table_view;
